@@ -23,7 +23,11 @@ export async function ec2Status(region?: string): Promise<{
   const r = region || process.env.AWS_REGION || "ap-south-1";
   const client = new EC2Client({ region: r });
   try {
-    const res = await client.send(new DescribeInstancesCommand({}));
+    // Bound the call: without credentials the SDK can otherwise hang for a
+    // long time probing the IMDS metadata endpoint — bad in a live demo.
+    const res = await client.send(new DescribeInstancesCommand({}), {
+      abortSignal: AbortSignal.timeout(20_000),
+    });
     const instances: Ec2Instance[] = (res.Reservations ?? [])
       .flatMap((x) => x.Instances ?? [])
       .map((i) => ({

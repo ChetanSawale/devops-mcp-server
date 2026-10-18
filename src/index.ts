@@ -29,14 +29,15 @@ const asText = (data: unknown) => ({
   content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
 });
 
-/** Wrap a tool handler so failures come back as readable text, not a crash. */
+/** Wrap a tool handler: failures come back as readable text flagged with
+ *  isError (per the MCP spec) instead of crashing the server. */
 const safe =
   (fn: () => Promise<unknown>) =>
   async () => {
     try {
       return asText(await fn());
     } catch (e) {
-      return asText({ error: (e as Error).message });
+      return { ...asText({ error: (e as Error).message }), isError: true as const };
     }
   };
 

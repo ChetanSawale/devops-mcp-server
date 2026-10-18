@@ -18,7 +18,8 @@ export async function systemStats(): Promise<SystemStats> {
 
   let diskRoot = "unavailable";
   try {
-    const df = await run("df", ["-h", "/"]);
+    // -P keeps POSIX one-line-per-filesystem output (no wrapped lines).
+    const df = await run("df", ["-h", "-P", "/"]);
     const dataLine = df
       .trim()
       .split("\n")
