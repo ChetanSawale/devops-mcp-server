@@ -67,13 +67,6 @@ docker run -i --rm -e ALLOW_WRITE_ACTIONS=true devops-mcp-server
 
 `ec2_status` uses the standard credential chain (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`, `~/.aws/credentials`, or an IAM role). Set `AWS_REGION` or pass `region` per call (defaults to `ap-south-1`).
 
-## Demo ideas (for the <3 min video)
-
-1. *"Is my server healthy?"* → `system_stats` → spoken summary of CPU/RAM/disk.
-2. *"Which Docker containers are using the most memory?"* → `docker_stats` → ranked answer.
-3. *"Nginx looks down — check it and show me its recent logs"* → `service_status` + `journal_logs`.
-4. *"Restart it"* → `service_restart` (with `ALLOW_WRITE_ACTIONS=true`) → confirm it's active again.
-
 ## Hackathon submission checklist
 
 - [ ] Working project (this repo)
