@@ -1,32 +1,58 @@
 import { spawn } from "node:child_process";
 
 // One-shot MCP client for demo recordings.
-// Usage:
-//   node scripts/demo-call.mjs <tool> [json-args]
-// Examples:
-//   node scripts/demo-call.mjs system_stats
-//   node scripts/demo-call.mjs docker_stats
-//   node scripts/demo-call.mjs service_status '{"unit":"cron.service"}'
-//   node scripts/demo-call.mjs journal_logs '{"unit":"cron.service","lines":5}'
-//   node scripts/demo-call.mjs service_restart '{"unit":"cron.service"}'
-//   ALLOW_WRITE_ACTIONS=true node scripts/demo-call.mjs service_restart '{"unit":"cron.service"}'
+// Short form (recommended for video):
+//   npm run stats                  -> system_stats
+//   npm run docker                 -> docker_ps
+//   npm run dstats                 -> docker_stats
+//   npm run svc -- <unit>          -> service_status   (e.g. npm run svc -- cron)
+//   npm run logs -- <unit> [n]      -> journal_logs
+//   npm run log -- <path> [n]      -> tail_log         (path must be under /var/log)
+//   npm run restart -- <unit>      -> service_restart  (refused unless ALLOW_WRITE_ACTIONS=true)
+//   npm run ec2 -- [region]        -> ec2_status
+//
+// Long form also works:
+//   node scripts/demo-call.mjs <tool> '{"json":"args"}'
 //
 // Exits 0 on success. On tool error (isError), prints the error text and exits 1.
 
-const [tool, argsJson] = process.argv.slice(2);
-if (!tool) {
-  console.error("usage: node scripts/demo-call.mjs <tool> [json-args]");
+const ALIASES = {
+  stats: ["system_stats", {}],
+  docker: ["docker_ps", {}],
+  dstats: ["docker_stats", {}],
+  ec2: ["ec2_status", {}],
+};
+
+function parseArgs(argv) {
+  const [name, ...rest] = argv;
+  if (ALIASES[name]) {
+    const [tool, base] = ALIASES[name];
+    const args = { ...base };
+    if (name === "ec2" && rest[0]) args.region = rest[0];
+    return [tool, args];
+  }
+  // service-style tools: svc <unit>, logs <unit> [n], log <path> [n], restart <unit>
+  if (name === "svc" && rest[0]) return ["service_status", { unit: rest[0] }];
+  if (name === "logs" && rest[0])
+    return ["journal_logs", { unit: rest[0], ...(rest[1] ? { lines: Number(rest[1]) } : {}) }];
+  if (name === "log" && rest[0])
+    return ["tail_log", { path: rest[0], ...(rest[1] ? { lines: Number(rest[1]) } : {}) }];
+  if (name === "restart" && rest[0]) return ["service_restart", { unit: rest[0] }];
+  // long form: full tool name + optional JSON
+  if (rest[0]?.startsWith("{")) {
+    try {
+      return [name, JSON.parse(rest[0])];
+    } catch {
+      console.error("bad JSON args");
+      process.exit(2);
+    }
+  }
+  if (rest.length === 0) return [name, {}];
+  console.error(`unknown command: ${name}`);
   process.exit(2);
 }
-let toolArgs = {};
-if (argsJson) {
-  try {
-    toolArgs = JSON.parse(argsJson);
-  } catch {
-    console.error("bad JSON args");
-    process.exit(2);
-  }
-}
+
+const [tool, toolArgs] = parseArgs(process.argv.slice(2));
 
 const child = spawn("node", ["dist/index.js"], { stdio: ["pipe", "pipe", "inherit"] });
 
@@ -54,7 +80,7 @@ await send({
   jsonrpc: "2.0",
   id: 1,
   method: "initialize",
-  params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "demo-call", version: "0.1.0" } },
+  params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "demo-call", version: "0.2.0" } },
 });
 child.stdin.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
 
